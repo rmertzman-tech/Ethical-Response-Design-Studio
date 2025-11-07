@@ -674,6 +674,7 @@ CONTEXT CHANGES:
                         )}
                         {stage === 'cases' && (
                             <DesignWorkflow 
+                                key={currentCaseIndex}
                                 caseData={DESIGN_CASES[currentCaseIndex]}
                                 caseNumber={currentCaseIndex + 1}
                                 totalCases={DESIGN_CASES.length}
