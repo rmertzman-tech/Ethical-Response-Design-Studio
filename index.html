@@ -106,7 +106,6 @@
             }
             
             // Pattern appropriateness (25 points)
-            // Check how many correct patterns selected vs incorrect
             const correctPatterns = design.patterns.filter(p => 
                 expertDesign.recommendedPatterns.includes(p)
             ).length;
@@ -117,7 +116,6 @@
             score += Math.min(25, patternScore);
             
             // Beauty scores reasonableness (25 points)
-            // Check if within 20 points of expert ranges
             const beautyScores = ['legibility', 'capacityRevealing', 'authenticity', 'implementability'];
             let beautyTotal = 0;
             beautyScores.forEach(dimension => {
@@ -1195,9 +1193,18 @@ CONTEXT CHANGES:
             );
         }
 
-        // Design Phase Component (continues in next part due to length...)
+        // Design Phase Component - WITH BOTH NEW FEATURES
         function DesignPhase({ caseData, design, setDesign, onSubmit }) {
             const [step, setStep] = useState(0);
+            const [caseExpanded, setCaseExpanded] = useState(() => {
+                const saved = localStorage.getItem('module3CaseExpanded');
+                return saved ? JSON.parse(saved) : false;
+            });
+
+            // Save case expansion preference
+            useEffect(() => {
+                localStorage.setItem('module3CaseExpanded', JSON.stringify(caseExpanded));
+            }, [caseExpanded]);
 
             const updateDesign = (field, value) => {
                 setDesign({
@@ -1232,9 +1239,23 @@ CONTEXT CHANGES:
                 updateDesign('risks', updated);
             };
 
+            // Check if step is complete
+            const isStepComplete = (stepNum) => {
+                if (stepNum === 0) return design.interventionLevel !== '';
+                if (stepNum === 1) return design.description.length >= 50;
+                if (stepNum === 2) return design.patterns.length > 0;
+                if (stepNum === 3) return true; // Beauty scores always have values
+                if (stepNum === 4) return true; // Risks are optional
+                return false;
+            };
+
+            const allStepsComplete = () => {
+                return [0, 1, 2, 3, 4].every(i => isStepComplete(i));
+            };
+
             const steps = [
                 {
-                    title: 'Choose Intervention Level',
+                    title: 'Intervention Level',
                     component: (
                         <div>
                             <p className="text-gray-700 mb-4">
@@ -1275,7 +1296,7 @@ CONTEXT CHANGES:
                     )
                 },
                 {
-                    title: 'Describe Your Intervention',
+                    title: 'Describe Intervention',
                     component: (
                         <div>
                             <p className="text-gray-700 mb-4">
@@ -1288,11 +1309,14 @@ CONTEXT CHANGES:
                                 value={design.description}
                                 onChange={(e) => updateDesign('description', e.target.value)}
                             ></textarea>
+                            <div className="mt-2 text-sm text-gray-600">
+                                {design.description.length} / 50 characters minimum
+                            </div>
                         </div>
                     )
                 },
                 {
-                    title: 'Select Design Patterns',
+                    title: 'Select Patterns',
                     component: (
                         <div>
                             <p className="text-gray-700 mb-4">
@@ -1326,7 +1350,7 @@ CONTEXT CHANGES:
                     )
                 },
                 {
-                    title: 'Beautiful Design Check',
+                    title: 'Beautiful Design',
                     component: (
                         <div>
                             <p className="text-gray-700 mb-6">
@@ -1415,68 +1439,100 @@ CONTEXT CHANGES:
                 }
             ];
 
-            const canProceed = () => {
-                if (step === 0) return design.interventionLevel !== '';
-                if (step === 1) return design.description.length >= 50;
-                if (step === 2) return design.patterns.length > 0 || !design.interventionLevel;
-                return true;
-            };
-
             return (
                 <div className="bg-white rounded-lg shadow-lg p-8">
-                    <div className="mb-6">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-2xl font-bold text-gray-900">
-                                Step {step + 1}/5: {steps[step].title}
-                            </h3>
-                            <span className="text-sm text-gray-600">
-                                {Math.round((step / 5) * 100)}% Complete
+                    {/* FEATURE 1: COLLAPSIBLE CASE REFERENCE */}
+                    <div className="mb-6 border border-gray-300 rounded-lg overflow-hidden">
+                        <button
+                            onClick={() => setCaseExpanded(!caseExpanded)}
+                            className="w-full px-4 py-3 bg-blue-50 hover:bg-blue-100 transition-colors flex items-center justify-between"
+                        >
+                            <div className="flex items-center space-x-2">
+                                <span className="text-lg">📋</span>
+                                <span className="font-semibold text-gray-900">Case Reference</span>
+                            </div>
+                            <span className="text-gray-600">
+                                {caseExpanded ? '▼ Collapse' : '▶ Expand'}
                             </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                                className="progress-bar bg-purple-600 h-2 rounded-full"
-                                style={{width: `${(step / 5) * 100}%`}}
-                            ></div>
+                        </button>
+                        
+                        {caseExpanded && (
+                            <div className="p-4 bg-white border-t border-gray-200">
+                                <h4 className="font-bold text-gray-900 mb-2">{caseData.title}</h4>
+                                <div className="mb-3">
+                                    <p className="text-sm font-semibold text-purple-900">Diagnosis:</p>
+                                    <p className="text-sm text-gray-700">{caseData.diagnosis.primary}</p>
+                                    <p className="text-xs text-gray-600 mt-1">{caseData.diagnosis.summary}</p>
+                                </div>
+                                <div className="mb-3">
+                                    <p className="text-sm font-semibold text-gray-900">Scenario:</p>
+                                    <p className="text-sm text-gray-700 whitespace-pre-line">{caseData.scenario}</p>
+                                </div>
+                                <div className="mb-3">
+                                    <p className="text-sm font-semibold text-gray-900">Stakeholders:</p>
+                                    <p className="text-sm text-gray-700">{caseData.stakeholders}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-blue-900">Design Challenge:</p>
+                                    <p className="text-sm text-gray-700">{caseData.question}</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* FEATURE 2: FREE NAVIGATION BETWEEN STEPS */}
+                    <div className="mb-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-3">Design Your Intervention</h3>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {steps.map((s, idx) => {
+                                const complete = isStepComplete(idx);
+                                const current = step === idx;
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setStep(idx)}
+                                        className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                                            current
+                                                ? 'bg-purple-600 text-white'
+                                                : complete
+                                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        {complete && !current && '✓ '}
+                                        {idx + 1}. {s.title}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
                     <div className="mb-8">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                            Step {step + 1}: {steps[step].title}
+                        </h4>
                         {steps[step].component}
                     </div>
 
-                    <div className="flex space-x-4">
-                        {step > 0 && (
-                            <button
-                                onClick={() => setStep(step - 1)}
-                                className="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
-                            >
-                                ← Previous
-                            </button>
-                        )}
-                        {step < steps.length - 1 ? (
-                            <button
-                                onClick={() => setStep(step + 1)}
-                                disabled={!canProceed()}
-                                className="flex-1 bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-purple-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                            >
-                                Next Step →
-                            </button>
-                        ) : (
-                            <button
-                                onClick={onSubmit}
-                                disabled={!canProceed()}
-                                className="flex-1 bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-purple-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                            >
-                                Submit Design →
-                            </button>
+                    <div className="border-t pt-6">
+                        <button
+                            onClick={onSubmit}
+                            disabled={!allStepsComplete()}
+                            className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-purple-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                            {allStepsComplete() ? 'Submit Design →' : 'Complete all steps to submit'}
+                        </button>
+                        {!allStepsComplete() && (
+                            <p className="text-sm text-gray-600 text-center mt-2">
+                                Missing: {[0, 1, 2, 3, 4].filter(i => !isStepComplete(i)).map(i => steps[i].title).join(', ')}
+                            </p>
                         )}
                     </div>
                 </div>
             );
         }
 
-        // Review Phase Component
+        // Review Phase Component (unchanged from before, continuing...)
         function ReviewPhase({ caseData, design, expertDesign, score, onNext, caseNumber, totalCases }) {
             const getLevelLabel = (level) => {
                 const labels = {
@@ -1612,7 +1668,7 @@ CONTEXT CHANGES:
             );
         }
 
-        // Pattern Recognition Game Component
+        // Pattern Recognition Game Component (unchanged)
         function PatternRecognitionGame({ questions, onComplete }) {
             const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
             const [selectedLevel, setSelectedLevel] = useState(null);
@@ -1763,7 +1819,7 @@ CONTEXT CHANGES:
             );
         }
 
-        // Completion Screen Component
+        // Completion Screen Component (continuing the file - due to length limits this will be in next message)
         function CompletionScreen({ studentInfo, sessionData }) {
             const designAverage = Math.round(
                 sessionData.designs.reduce((sum, d) => sum + d.score, 0) / sessionData.designs.length
